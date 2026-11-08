@@ -27,8 +27,29 @@ workflows:
         script: /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${APP_VERSION:-1.0.0}" ios/App/App/Info.plist
       - name: Initialize keychain
         script: keychain initialize
+      - name: Prepare signing key
+        # Accepts the key either as CERTIFICATE_PRIVATE_KEY_BASE64 (one line, safest to paste)
+        # or as CERTIFICATE_PRIVATE_KEY (the PEM text). Repairs keys whose line breaks were lost.
+        script: |
+          set -e
+          KEY_FILE="$CM_BUILD_DIR/cert_key.pem"
+          if [ -n "$CERTIFICATE_PRIVATE_KEY_BASE64" ]; then
+            echo "Using CERTIFICATE_PRIVATE_KEY_BASE64"
+            printf '%s' "$CERTIFICATE_PRIVATE_KEY_BASE64" | tr -d ' \r\n' | base64 --decode > "$KEY_FILE"
+          else
+            echo "Using CERTIFICATE_PRIVATE_KEY"
+            printf '%s\n' "$CERTIFICATE_PRIVATE_KEY" | tr -d '\r' > "$KEY_FILE"
+            if [ "$(wc -l < "$KEY_FILE")" -lt 3 ]; then
+              echo "Key has no line breaks - rebuilding PEM format"
+              BODY=$(tr -d '\n' < "$KEY_FILE" | sed -E 's/-----BEGIN [A-Z ]+-----//; s/-----END [A-Z ]+-----//' | tr -d ' ')
+              { echo "-----BEGIN RSA PRIVATE KEY-----"; echo "$BODY" | fold -w 64; echo "-----END RSA PRIVATE KEY-----"; } > "$KEY_FILE"
+            fi
+          fi
+          echo "First line: $(head -1 "$KEY_FILE")"
+          echo "Lines: $(wc -l < "$KEY_FILE")"
+          openssl rsa -in "$KEY_FILE" -check -noout
       - name: Fetch signing files
-        script: app-store-connect fetch-signing-files "com.svitlanamot.smotacademy" --type IOS_APP_STORE --create
+        script: app-store-connect fetch-signing-files "com.svitlanamot.smotacademy" --type IOS_APP_STORE --create --certificate-key=@file:$CM_BUILD_DIR/cert_key.pem
       - name: Add certificates to keychain
         script: keychain add-certificates
       - name: Configure code signing
