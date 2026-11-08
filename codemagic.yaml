@@ -33,6 +33,8 @@ workflows:
         script: |
           set -e
           KEY_FILE="$CM_BUILD_DIR/cert_key.pem"
+          echo "Length of base64 key variable: ${#CERTIFICATE_PRIVATE_KEY_BASE64} (expected about 1600)"
+          echo "Length of text key variable: ${#CERTIFICATE_PRIVATE_KEY} (expected about 1700)"
           if [ -n "$CERTIFICATE_PRIVATE_KEY_BASE64" ]; then
             echo "Using CERTIFICATE_PRIVATE_KEY_BASE64"
             printf '%s' "$CERTIFICATE_PRIVATE_KEY_BASE64" | tr -d ' \r\n' | base64 --decode > "$KEY_FILE"
