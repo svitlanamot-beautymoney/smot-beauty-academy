@@ -1,0 +1,12 @@
+{
+  "appId": "com.svitlanamot.smotacademy",
+  "appName": "S.MOT Academy",
+  "webDir": "www",
+  "backgroundColor": "#0c0c0e",
+  "ios": {
+    "contentInset": "never",
+    "preferredContentMode": "mobile",
+    "backgroundColor": "#0c0c0e",
+    "limitsNavigationsToAppBoundDomains": false
+  }
+}

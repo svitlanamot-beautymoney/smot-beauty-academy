@@ -1,0 +1,48 @@
+workflows:
+  smot-academy-ios:
+    name: S.MOT Academy iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    working_directory: ios-app
+    integrations:
+      app_store_connect: Beauty Money Apple
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+      groups:
+        - iOS_signing
+    scripts:
+      - name: Install dependencies
+        script: npm install --no-audit --no-fund
+      - name: Build web app for iOS
+        script: node build-web.mjs
+      - name: Sync Capacitor project
+        script: npx cap sync ios
+      - name: Set build number
+        script: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
+      - name: Set app version
+        # Version shown in the App Store. Raise it for every new release (1.0.0 → 1.0.1 …),
+        # or set APP_VERSION when starting the build in Codemagic.
+        script: /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${APP_VERSION:-1.0.0}" ios/App/App/Info.plist
+      - name: Initialize keychain
+        script: keychain initialize
+      - name: Fetch signing files
+        script: app-store-connect fetch-signing-files "com.svitlanamot.smotacademy" --type IOS_APP_STORE --create
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+      - name: Configure code signing
+        script: xcode-project use-profiles --project ios/App/App.xcodeproj
+      - name: Build App Store archive
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/App/App.xcworkspace \
+            --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

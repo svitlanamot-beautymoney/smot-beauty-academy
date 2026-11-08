@@ -1,0 +1,23 @@
+{
+  "name": "smot-academy-ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "S.MOT Global Beauty Academy — iOS app (Capacitor shell around the website in the repository root)",
+  "type": "module",
+  "scripts": {
+    "build:web": "node build-web.mjs",
+    "sync:ios": "npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "7.4.3",
+    "@capacitor/ios": "7.4.3",
+    "@supabase/supabase-js": "2.45.4",
+    "htm": "3.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "7.4.3"
+  }
+}

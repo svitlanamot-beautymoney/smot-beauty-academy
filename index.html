@@ -845,6 +845,25 @@ details[open]>summary>.chev{transform:rotate(90deg)}
 .ribbon-text{display:grid;gap:2px;flex:1;min-width:220px}.ribbon-text b{font-family:'Playfair Display',serif;font-size:19px;color:#f1d9a2}.ribbon-text span{font-size:14px;color:#d4cec5}
 .old-price{font-size:18px;color:#7d766b;margin-left:8px;font-family:'DM Sans',sans-serif}
 
+/* v20: report & block, account deletion */
+.flag{display:inline-flex;align-items:center}
+.flag-btn{background:none;border:0;color:var(--faint);cursor:pointer;padding:4px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px}
+.flag-btn:hover,.flag-btn:focus-visible{color:var(--gold-2);background:var(--gold-soft)}
+.post-actions .flag-btn{color:var(--faint)}
+.slot .bb-by{padding-right:34px}
+.slot > .flag{position:absolute;right:8px;bottom:8px;z-index:6}
+.slot > .flag .flag-btn{background:#0009;color:#f4efe7;backdrop-filter:blur(4px)}
+.msg .flag{justify-self:end}.msg .flag-btn{min-width:24px;min-height:24px;padding:2px}
+.thanks figcaption .flag{margin-left:6px;vertical-align:middle}
+.qa-q .flag{margin-left:auto}
+.report-reasons{display:grid;gap:8px}
+.report-reason{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;font-size:14.5px}
+.report-reason.on{border-color:var(--gold);background:var(--gold-soft)}
+.report-reason input{accent-color:var(--gold)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;color:#d4cec5}
+.check input{margin-top:3px;accent-color:var(--gold);flex:none;width:18px;height:18px}
+.check .link{padding:0;font-size:inherit}
+.danger-zone{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
 </style>
 </head><body>
 <div id="root"></div>
@@ -1582,7 +1601,7 @@ const api = {
     const c = (await sb.from('courses').select('*').eq('slug', slug).maybeSingle()).data; if (!c) return null;
     const [lessons, reviews, instructor] = await Promise.all([
       sb.from('lessons').select('id,course_id,title,description,duration_seconds,sort_order,is_preview,video_asset_id').eq('course_id', c.id).order('sort_order'),
-      sb.from('reviews').select('id,rating,body,created_at').eq('course_id', c.id).eq('is_published', true),
+      sb.from('reviews').select('id,student_id,rating,body,created_at').eq('course_id', c.id).eq('is_published', true),
       sb.from('profiles').select('id,display_name,professional_title,bio,country,years_experience').eq('id', c.instructor_id).maybeSingle()
     ]);
     let enrolled = false, progress = [], submissions = [];
@@ -2312,7 +2331,7 @@ const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ==
 function pickLang() { const s = store.get('smot.lang', null); if (s && I18N[s]) return s; const n = (navigator.language || 'en').slice(0, 2).toLowerCase(); return I18N[n] ? n : 'en'; }
 const loc = (o, lang) => !o ? '' : typeof o === 'string' ? o : (o[lang] || o.en || o.uk || o.ru || Object.values(o)[0] || '');
 var FREE_LAUNCH = true; // free opening: every published course can be joined at no cost until payments are connected
-const fmtPrice = (c, lang, t) => !c ? t.free : FREE_LAUNCH ? t.freeLaunchPrice : fmtPriceRaw(c, lang, t);
+const fmtPrice = (c, lang, t) => !c ? t.free : FREE_LAUNCH ? t.freeLaunchPrice : IOS_APP ? t.iosSoon : fmtPriceRaw(c, lang, t);
 const fmtPriceRaw = (c, lang, t) => !c ? t.free : new Intl.NumberFormat(lang === 'uk' ? 'uk-UA' : lang, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(c / 100);
 const fmtDate = (d, lang, opts) => d ? new Intl.DateTimeFormat(lang === 'uk' ? 'uk-UA' : lang, opts || { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d)) : '';
 const initials = n => String(n || 'S').split(/\s+/).map(x => x[0]).join('').slice(0, 2).toUpperCase();
@@ -2519,10 +2538,11 @@ function CoursePage({ ctx, slug }) {
       </div>
       <aside className="sticky-buy">
         <div className="card" style=${{ display: 'grid', gap: '14px' }}>
-          ${FREE_LAUNCH && c.price_cents ? html`<div style=${{ display: 'grid', gap: '4px' }}><span className="price" style=${{ fontSize: '30px' }}>${t.free} <s className="old-price">${fmtPriceRaw(c.price_cents, lang, t)}</s></span><small className="muted">${t.freeLaunchNote}</small></div>` : html`<span className="price" style=${{ fontSize: '30px' }}>${fmtPrice(c.price_cents, lang, t)}</span>`}
+          ${FREE_LAUNCH && c.price_cents && !IOS_APP ? html`<div style=${{ display: 'grid', gap: '4px' }}><span className="price" style=${{ fontSize: '30px' }}>${t.free} <s className="old-price">${fmtPriceRaw(c.price_cents, lang, t)}</s></span><small className="muted">${t.freeLaunchNote}</small></div>` : html`<span className="price" style=${{ fontSize: '30px' }}>${fmtPrice(c.price_cents, lang, t)}</span>`}
           <span className="muted">${lessons.length} ${t.lessons} · ${hoursOf(lessons)} ${t.hours}</span>
           ${enrolled ? html`<div style=${{ display: 'grid', gap: '8px' }}><span className="badge" style=${{ justifySelf: 'start' }}>${t.enrolled}</span><div className="bar"><i style=${{ width: pct + '%' }}></i></div><span className="muted">${t.progress}: ${pct}%</span></div>`
             : acct && (!c.price_cents || FREE_LAUNCH) ? html`<button className="btn gold wide" onClick=${enrollFree}>${t.enrollFree}</button>`
+            : acct && IOS_APP ? html`<small className="muted">${t.iosSoonLong}</small>`
             : acct ? html`<button className="btn gold wide" onClick=${() => ctx.toast(t.payingSoon)}>${t.buyCourse}</button><small className="muted">${t.payingSoon}</small>`
             : html`<button className="btn primary wide" onClick=${() => go('account')}>${t.signInToEnroll}</button>`}
         </div>
@@ -2556,7 +2576,7 @@ function CoursePage({ ctx, slug }) {
     </section>
 
     <section className="section"><${SectionHead} title=${t.reviews} />
-      ${reviews.length ? html`<div className="grid two">${reviews.map(r => html`<div key=${r.id} className="card" style=${{ display: 'grid', gap: '8px' }}><span style=${{ color: 'var(--gold)', letterSpacing: '2px' }}>${'★'.repeat(r.rating)}<span style=${{ color: 'var(--line)' }}>${'★'.repeat(5 - r.rating)}</span></span><p style=${{ margin: 0 }}>${r.body}</p></div>`)}</div>` : html`<${Empty} text=${t.noReviews} />`}
+      ${reviews.length ? html`<div className="grid two">${reviews.map(r => html`<div key=${r.id} className="card" style=${{ display: 'grid', gap: '8px' }}><span style=${{ color: 'var(--gold)', letterSpacing: '2px' }}>${'★'.repeat(r.rating)}<span style=${{ color: 'var(--line)' }}>${'★'.repeat(5 - r.rating)}</span></span><p style=${{ margin: 0 }}>${r.body}</p><${Flag} ctx=${ctx} kind="review" id=${r.id} owner=${r.student_id} /></div>`)}</div>` : html`<${Empty} text=${t.noReviews} />`}
     </section>
 
     <${AutoOpen} lessons=${lessons} enrolled=${enrolled} watch=${watch} />
@@ -2726,7 +2746,7 @@ function Community({ ctx }) {
         <div className="post-head"><span className="avatar">${initials(p.author || t.member)}</span><div style=${{ minWidth: 0 }}><b>${p.author || t.member}</b><small>${[p.country, 'S.MOT member', p.sample ? t.sample : fmtDate(p.created_at, lang, { day: 'numeric', month: 'short' })].filter(Boolean).join(' · ')}</small></div></div>
         ${p.art && html`<${Cover} k=${p.art} ratio="4/3" />`}
         <p>${p.body}</p>
-        <div className="post-actions"><button className=${p.liked ? 'on' : ''} onClick=${() => like(p)} aria-label="Like"><${Icon} n="heart" fill=${p.liked} /> ${p.likes}</button><button className="share" onClick=${share} aria-label="Share"><${Icon} n="share" /></button></div>
+        <div className="post-actions"><button className=${p.liked ? 'on' : ''} onClick=${() => like(p)} aria-label="Like"><${Icon} n="heart" fill=${p.liked} /> ${p.likes}</button><button className="share" onClick=${share} aria-label="Share"><${Icon} n="share" /></button><${Flag} ctx=${ctx} kind="post" id=${p.id} owner=${p.author_id} name=${p.author} /></div>
       </article>`)}</div>` : html`<${Empty} text=${t.noPosts} />`}
     </section>`}
   </div>`;
@@ -2758,8 +2778,8 @@ function Auth({ ctx }) {
     if (MODE.demo) { ctx.setDemoRole('student'); return; }
     setBusy(true);
     let r;
-    if (mode === 'signup') r = await sb.auth.signUp({ email, password: pw, options: { emailRedirectTo: location.href.split('#')[0] } });
-    else if (mode === 'forgot') r = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] + '#account-profile' });
+    if (mode === 'signup') r = await sb.auth.signUp({ email, password: pw, options: { emailRedirectTo: siteBase() } });
+    else if (mode === 'forgot') r = await sb.auth.resetPasswordForEmail(email, { redirectTo: siteBase() + '#account-profile' });
     else r = await sb.auth.signInWithPassword({ email, password: pw });
     setBusy(false);
     if (r.error) setMsg({ err: true, text: r.error.message });
@@ -2773,6 +2793,7 @@ function Auth({ ctx }) {
     <form className="form card" onSubmit=${submit}>
       <label className="field">${t.email}<input id="auth-email" type="email" required autoComplete="email" value=${email} onInput=${e => setEmail(e.target.value)} placeholder="name@example.com" /></label>
       ${mode !== 'forgot' && html`<label className="field">${t.password}<input id="auth-password" type="password" required minLength="8" autoComplete=${mode === 'signin' ? 'current-password' : 'new-password'} value=${pw} onInput=${e => setPw(e.target.value)} /></label>`}
+      ${mode === 'signup' && html`<${AgreeTerms} t=${t} />`}
       <button className="btn gold wide" disabled=${busy}>${busy ? t.loading : mode === 'signup' ? t.signUp : mode === 'forgot' ? t.submit : t.signIn}</button>
       ${msg && html`<p className=${'notice' + (msg.err ? ' err' : '')} role="status" style=${{ margin: 0 }}>${msg.text}</p>`}
       ${mode === 'signin' && html`<button type="button" className="link" style=${{ justifySelf: 'center' }} onClick=${() => setMode('forgot')}>${t.forgot}</button>`}
@@ -2805,7 +2826,7 @@ function Account({ ctx, tab: tab0 }) {
     ${tab === 'studio' && html`<${Studio} ctx=${ctx} />`}
     ${tab === 'teaching' && html`<${Teaching} ctx=${ctx} />`}
     ${tab === 'achievements' && html`<${Achievements} ctx=${ctx} />`}
-    ${tab === 'profile' && html`<${ProfileForm} ctx=${ctx} />`}
+    ${tab === 'profile' && html`<${ProfileForm} ctx=${ctx} /><${AccountSafety} ctx=${ctx} />`}
     ${tab === 'notifications' && html`<${Notifications} ctx=${ctx} />`}
     ${tab === 'admin' && html`<${Admin} ctx=${ctx} />`}
     ${tab === 'billboard' && html`<${MyBillboard} ctx=${ctx} />`}
@@ -2962,6 +2983,7 @@ function Admin({ ctx }) {
     ${block(t.pendingApps, q.apps, a => html`<div key=${a.id} className="li" style=${{ flexWrap: 'wrap' }}><div className="grow"><b>${a.full_name || '—'}</b><small>${[a.country, a.experience_years && a.experience_years + ' ' + t.years, (a.expertise || []).join(', '), (a.teaching_languages || []).join('/').toUpperCase()].filter(Boolean).join(' · ')}</small>${a.education_summary && html`<small style=${{ display: 'block', color: '#d4cec5' }}>${a.education_summary}</small>`}</div><${Btns} ok=${() => act(api.reviewApp(acct.user.id, a, true))} no=${() => act(api.reviewApp(acct.user.id, a, false))} /></div>`)}
     ${block(t.pendingAch, q.ach, a => html`<div key=${a.id} className="li" style=${{ flexWrap: 'wrap' }}><span style=${{ color: 'var(--gold)' }}><${Icon} n="award" /></span><div className="grow"><b>${a.title}</b><small>${[a.profile, a.issuer].filter(Boolean).join(' · ')}</small>${a.evidence_url && html`<a className="link" href=${a.evidence_url} target="_blank" rel="noopener">${t.evidence}</a>`}</div><${Btns} ok=${() => act(api.reviewAch(acct.user.id, a, true))} no=${() => act(api.reviewAch(acct.user.id, a, false))} /></div>`)}
     ${block(t.pendingCourses, q.courses, c => html`<div key=${c.id} className="li" style=${{ flexWrap: 'wrap' }}><div className="grow" style=${{ cursor: 'pointer' }} onClick=${() => go('course-' + c.slug)}><b>${loc(c.title, lang)}</b><small>${fmtPrice(c.price_cents, lang, t)}</small></div><${Btns} ok=${() => act(api.setCourseStatus(c.id, 'published'))} no=${() => act(api.setCourseStatus(c.id, 'rejected'))} /></div>`)}
+    <${ReportsAdmin} ctx=${ctx} />
     <${FreeLaunchAdmin} ctx=${ctx} />
     <${UsersAdmin} ctx=${ctx} />
     <${StoryReview} ctx=${ctx} />
@@ -3144,7 +3166,7 @@ D.myBillboards = [];
 Object.assign(api, {
   async billboards() {
     if (MODE.demo) return D.billboards.filter(b => b.status === 'published');
-    const list = rows(await sb.from('master_billboards').select('id,author_name,city,headline,subline,media_path,media_type,link,category_id,created_at').eq('status', 'published').order('created_at', { ascending: false }).limit(60));
+    const list = rows(await sb.from('master_billboards').select('id,owner_id,author_name,city,headline,subline,media_path,media_type,link,category_id,created_at').eq('status', 'published').order('created_at', { ascending: false }).limit(60));
     return list.map(b => ({ ...b, art: ctxCats.find(c => c.id === b.category_id)?.slug }));
   },
   async myBillboards(userId) {
@@ -3203,7 +3225,7 @@ function Slot({ ads, size, offset, ctx }) {
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   useEffect(() => { if (reduce || ads.length < 2) return; const id = setInterval(() => setK(x => (x + 1) % ads.length), 5200 + offset * 900); return () => clearInterval(id); }, [ads.length]);
   const ad = ads[k % ads.length];
-  return html`<div className=${'slot ' + size}><${Billboard} key=${ad.id + '-' + k} ad=${ad} size=${size} ctx=${ctx} /></div>`;
+  return html`<div className=${'slot ' + size}><${Billboard} key=${ad.id + '-' + k} ad=${ad} size=${size} ctx=${ctx} /><${Flag} ctx=${ctx} kind="billboard" id=${ad.id} owner=${ad.owner_id} name=${ad.author_name} /></div>`;
 }
 function BillboardWall({ ctx, compact }) {
   const { t } = ctx; ctxCats = ctx.cats;
@@ -3707,7 +3729,7 @@ function useLessonPlayer(ctx) {
       : html`<div className="vthumb big locked"><${Cover} k=${(ctx.cats.find(c => c.id === open.course?.category_id) || {}).slug} ratio="16/9" mark=${false} /><span className="vplay"><${Icon} n="lock" s=${26} /></span></div>
         <div className="row" style=${{ justifyContent: 'space-between' }}><span className="badge tag">${t.locked2}</span><span className="price" style=${{ fontSize: '22px' }}>${fmtPrice(open.course?.price_cents, lang, t)}</span></div>`}
     <b>${loc(open.course?.title, lang)}</b>
-    <div className="row">${!open.is_preview && html`<button className="btn gold" onClick=${() => buy(open.course)}>${t.buyCourse}</button>`}<button className="btn" onClick=${() => { setOpen(null); go('course-' + open.course?.slug); }}>${t.openProgram}</button></div>
+    <div className="row">${!open.is_preview && !IOS_APP && html`<button className="btn gold" onClick=${() => buy(open.course)}>${t.buyCourse}</button>`}<button className="btn" onClick=${() => { setOpen(null); go('course-' + open.course?.slug); }}>${t.openProgram}</button></div>
   <//>`;
   return [play, modal];
 }
@@ -3986,7 +4008,7 @@ function ChatModal({ ctx, conv, title, onClose }) {
   useEffect(() => { end.current && end.current.scrollIntoView({ block: 'end' }); }, [list]);
   async function send(e) { e.preventDefault(); if (!body.trim()) return; const r = await api.sendMessage(conv, acct.user.id, body.trim()); if (r?.error) ctx.toast(r.error.message); else { setBody(''); reload(); } }
   return html`<${Modal} title=${title} onClose=${onClose}>
-    <div className="chat">${(list || []).length ? list.map(m => html`<div key=${m.id} className=${'msg' + (m.sender_id === acct.user.id ? ' me' : '')}><span>${m.body}</span><small>${fmtDate(m.created_at, lang, { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</small></div>`) : html`<span className="muted">${t.noMessages}</span>`}<i ref=${end}></i></div>
+    <div className="chat">${(list || []).length ? list.map(m => html`<div key=${m.id} className=${'msg' + (m.sender_id === acct.user.id ? ' me' : '')}><span>${m.body}</span><small>${fmtDate(m.created_at, lang, { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</small>${m.sender_id !== acct.user.id && html`<${Flag} ctx=${ctx} kind="message" id=${m.id} owner=${m.sender_id} />`}</div>`) : html`<span className="muted">${t.noMessages}</span>`}<i ref=${end}></i></div>
     <form className="chat-form" onSubmit=${send}><input className="input" id="chat-body" maxLength="4000" placeholder=${t.msgPh} value=${body} onInput=${e => setBody(e.target.value)} /><button className="btn gold" disabled=${!body.trim()}>${t.send}</button></form>
   <//>`;
 }
@@ -4349,7 +4371,7 @@ function FounderLetter({ ctx, full }) {
 }
 function StoryCard({ s, ctx, onOpen }) {
   const { t, lang } = ctx;
-  if (s.kind === 'thanks') return html`<figure className="thanks"><blockquote>${s.body}</blockquote><figcaption><b>${s.author_name || t.member}</b> → ${s.educator_name || t.educator}${s.sample ? html` <span className="badge plain case">${t.sample}</span>` : ''}</figcaption></figure>`;
+  if (s.kind === 'thanks') return html`<figure className="thanks"><blockquote>${s.body}</blockquote><figcaption><b>${s.author_name || t.member}</b> → ${s.educator_name || t.educator}${s.sample ? html` <span className="badge plain case">${t.sample}</span>` : ''}<${Flag} ctx=${ctx} kind="story" id=${s.id} owner=${s.author_id} name=${s.author_name} /></figcaption></figure>`;
   return html`<button className="story" onClick=${() => onOpen(s)}>
     ${s.photo_url ? html`<img className="story-img" src=${s.photo_url} alt="" />` : html`<${Cover} k="rose" ratio="16/9" mark=${false} />`}
     <div className="story-path"><span>${s.from_text || '…'}</span><${Icon} n="arrow" s=${14} /><b>${s.to_text || '…'}</b></div>
@@ -4389,7 +4411,7 @@ function StoriesPage({ ctx }) {
     ${open && html`<${Modal} title=${open.title || open.author_name} onClose=${() => setOpen(null)}>
       ${open.photo_url && html`<img src=${open.photo_url} alt="" style=${{ borderRadius: '16px', maxHeight: '40vh', objectFit: 'cover' }} />`}
       <div className="story-path"><span>${open.from_text}</span><${Icon} n="arrow" s=${14} /><b>${open.to_text}</b></div>
-      <p style=${{ margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>${open.body}</p><small className="muted">${open.author_name}</small>
+      <p style=${{ margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>${open.body}</p><div className="row" style=${{ justifyContent: 'space-between' }}><small className="muted">${open.author_name}</small><${Flag} ctx=${ctx} kind="story" id=${open.id} owner=${open.author_id} name=${open.author_name} /></div>
     <//>`}
     ${form && html`<${StoryForm} ctx=${ctx} kind0=${form} onClose=${() => setForm(null)} />`}
   </div>`;
@@ -4663,7 +4685,7 @@ function ModelsPage({ ctx }) {
         <div className="row" style=${{ justifyContent: 'space-between' }}><span className="badge tag">${c.city}</span>${catName(c.category_slug) && html`<span className="badge plain case">${catName(c.category_slug)}</span>`}</div>
         ${c.when_text && html`<b><${Icon} n="cal" s=${15} /> ${c.when_text}</b>`}
         <p>${c.body}</p>
-        <small className="muted">${c.author_name || t.member} · ${fmtDate(c.created_at, lang, { day: 'numeric', month: 'short' })}${c.sample ? ' · ' + t.sample : ''}</small>
+        <div className="row" style=${{ justifyContent: 'space-between' }}><small className="muted">${c.author_name || t.member} · ${fmtDate(c.created_at, lang, { day: 'numeric', month: 'short' })}${c.sample ? ' · ' + t.sample : ''}</small>${!isMine(c) && html`<${Flag} ctx=${ctx} kind="model_call" id=${c.id} owner=${c.author_id} name=${c.author_name} />`}</div>
         ${isMine(c) ? html`<div className="row"><button className="btn sm" onClick=${() => setMine(c)}>${t.replies}</button>${c.status === 'open' && html`<button className="btn sm" onClick=${async () => { await api.closeModelCall(c); reload(); }}>${t.closeCall}</button>`}</div>`
           : html`<button className="btn sm gold" onClick=${() => acct ? setReply(c) : go('account')}>${t.beModel}</button>`}
       </article>`)}</div>` : html`<${Empty} text=${t.noCalls} />`}
@@ -4701,7 +4723,7 @@ function ModelReplyForm({ ctx, call, onClose }) {
 function ModelRepliesModal({ ctx, call, onClose }) {
   const { t, lang } = ctx;
   const [list] = useAsync(() => api.modelReplies(call), [call.id]);
-  return html`<${Modal} title=${t.replies} onClose=${onClose}>${(list || []).length ? html`<div className="list">${list.map(r => html`<div key=${r.id} className="li"><div className="grow"><b>${r.name}</b><small>${r.contact}</small>${r.body && html`<small style=${{ display: 'block', color: '#d4cec5' }}>${r.body}</small>`}</div><small className="muted">${fmtDate(r.created_at, lang, { day: 'numeric', month: 'short' })}</small></div>`)}</div>` : html`<${Empty} text=${t.noReplies} />`}<//>`;
+  return html`<${Modal} title=${t.replies} onClose=${onClose}>${(list || []).length ? html`<div className="list">${list.map(r => html`<div key=${r.id} className="li"><${Flag} ctx=${ctx} kind="model_reply" id=${r.id} owner=${r.author_id} name=${r.name} /><div className="grow"><b>${r.name}</b><small>${r.contact}</small>${r.body && html`<small style=${{ display: 'block', color: '#d4cec5' }}>${r.body}</small>`}</div><small className="muted">${fmtDate(r.created_at, lang, { day: 'numeric', month: 'short' })}</small></div>`)}</div>` : html`<${Empty} text=${t.noReplies} />`}<//>`;
 }
 
 /* ---------- Portfolio: before / after ---------- */
@@ -4836,7 +4858,7 @@ function QuestionsPanel({ ctx, lesson, course, now, seek }) {
   return html`<div className="notes qa">
     <b><${Icon} n="ask" s=${16} /> ${t.questionsTitle}</b>
     ${(list || []).length ? html`<ul className="qa-list">${list.map(q => html`<li key=${q.id}>
-      <div className="qa-q">${q.t_sec != null && html`<button className="tc" onClick=${() => seek(q.t_sec)}>${fmtT(q.t_sec)}</button>`}<span><b>${q.author_name || t.member}</b> ${q.body}</span></div>
+      <div className="qa-q">${q.t_sec != null && html`<button className="tc" onClick=${() => seek(q.t_sec)}>${fmtT(q.t_sec)}</button>`}<span><b>${q.author_name || t.member}</b> ${q.body}</span>${q.author_id !== acct.user.id && html`<${Flag} ctx=${ctx} kind="question" id=${q.id} owner=${q.author_id} name=${q.author_name} />`}</div>
       ${q.answer ? html`<div className="qa-a"><span className="eyebrow">${t.masterAnswer}</span><p>${q.answer}</p></div>`
         : isMaster ? html`<div className="note-add"><input id=${'qa-' + q.id} placeholder=${t.answerPh} value=${ans[q.id] || ''} onInput=${e => setAns({ ...ans, [q.id]: e.target.value })} /><button className="btn sm gold" onClick=${() => answer(q)}>${t.answerBtn}</button></div>`
         : html`<small className="muted">${t.waitingAnswer}</small>`}
@@ -5008,6 +5030,231 @@ function FreeLaunchAdmin({ ctx }) {
     <small className="muted">${t.launchAdminHint}</small>
     <button className="btn sm" style=${{ justifySelf: 'start' }} onClick=${toggle}>${FREE_LAUNCH ? t.launchTurnOff : t.launchTurnOn}</button>
   </div></section>`;
+}
+
+
+/* ================= v20: App Store readiness — report & block, account deletion, terms consent, iOS app mode ================= */
+/* Inside the iOS app (Capacitor) the page runs from capacitor://localhost:
+   e-mail links must open the website, and prices / purchase buttons are hidden
+   (digital courses can only be sold in the app through Apple in-app purchase). */
+const IOS_APP = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+const SITE_URL = 'https://comforting-mandazi-88fd1b.netlify.app';
+const siteBase = () => IOS_APP ? SITE_URL + '/' : location.href.split('#')[0];
+if (IOS_APP) document.documentElement.classList.add('ios-app');
+
+const I18N_V20 = {
+  en: {
+    moreActions: 'More actions', report: 'Report', reportTitle: 'Report content', reportLead: 'Tell us what is wrong. The academy reviews every report within 24 hours and removes content that breaks the rules.',
+    reason_spam: 'Spam or advertising', reason_offensive: 'Offensive or hateful', reason_harassment: 'Harassment or bullying', reason_nudity: 'Nudity or sexual content', reason_fake: 'Fake or misleading', reason_other: 'Something else',
+    reportDetails: 'Details (optional)', alsoBlock: 'Also block this person — you will no longer see their content', sendReport: 'Send report', reportThanks: 'Thank you. The academy will review it within 24 hours.',
+    blockUser: 'Block this person', blocked: 'Blocked. You will no longer see this person’s content.', blockedUsers: 'Blocked people', noBlocked: 'You have not blocked anyone.', unblock: 'Unblock', unblocked: 'Unblocked',
+    accountSafety: 'Privacy and account', deleteAccount: 'Delete account', deleteLead: 'Your account and all your data will be deleted for good: profile, courses you teach, progress, certificates, messages, posts and billboards. This cannot be undone.',
+    deleteConfirm: 'Type DELETE to confirm', deleteBtn: 'Delete my account forever', deleted: 'Your account has been deleted.',
+    reportsTitle: 'Reports to review', noReports: 'No open reports.', removeContent: 'Remove content', dismiss: 'Keep (dismiss)', kind_post: 'Post', kind_billboard: 'Billboard', kind_story: 'Story', kind_model_call: 'Model call', kind_model_reply: 'Model reply', kind_message: 'Message', kind_review: 'Review', kind_question: 'Question', kind_profile: 'Profile',
+    agreeTerms: 'I agree to the Terms of use. I will not post offensive or abusive content — the academy removes it and blocks such accounts.', readTerms: 'Read the terms',
+    iosSoon: 'Soon in the app', iosSoonLong: 'This course will soon be available in the app.'
+  },
+  uk: {
+    moreActions: 'Інші дії', report: 'Поскаржитися', reportTitle: 'Скарга на вміст', reportLead: 'Розкажи, що не так. Академія перевіряє кожну скаргу протягом 24 годин і видаляє вміст, що порушує правила.',
+    reason_spam: 'Спам або реклама', reason_offensive: 'Образливе або мова ворожнечі', reason_harassment: 'Цькування чи переслідування', reason_nudity: 'Оголеність або сексуальний вміст', reason_fake: 'Фейк або оману', reason_other: 'Інше',
+    reportDetails: 'Подробиці (необовʼязково)', alsoBlock: 'Також заблокувати цю людину — ти більше не бачитимеш її вміст', sendReport: 'Надіслати скаргу', reportThanks: 'Дякуємо. Академія перевірить протягом 24 годин.',
+    blockUser: 'Заблокувати цю людину', blocked: 'Заблоковано. Ти більше не бачитимеш вміст цієї людини.', blockedUsers: 'Заблоковані люди', noBlocked: 'Ти нікого не блокувала.', unblock: 'Розблокувати', unblocked: 'Розблоковано',
+    accountSafety: 'Приватність і акаунт', deleteAccount: 'Видалити акаунт', deleteLead: 'Акаунт і всі твої дані буде видалено назавжди: профіль, курси, які ти викладаєш, прогрес, сертифікати, повідомлення, дописи й білборди. Скасувати це неможливо.',
+    deleteConfirm: 'Введи DELETE, щоб підтвердити', deleteBtn: 'Видалити мій акаунт назавжди', deleted: 'Акаунт видалено.',
+    reportsTitle: 'Скарги на перевірку', noReports: 'Відкритих скарг немає.', removeContent: 'Видалити вміст', dismiss: 'Залишити', kind_post: 'Допис', kind_billboard: 'Білборд', kind_story: 'Історія', kind_model_call: 'Пошук моделі', kind_model_reply: 'Відгук моделі', kind_message: 'Повідомлення', kind_review: 'Відгук', kind_question: 'Питання', kind_profile: 'Профіль',
+    agreeTerms: 'Я погоджуюся з Умовами використання. Я не публікуватиму образливий чи агресивний вміст — академія видаляє його і блокує такі акаунти.', readTerms: 'Прочитати умови',
+    iosSoon: 'Скоро в застосунку', iosSoonLong: 'Цей курс незабаром буде доступний у застосунку.'
+  },
+  ru: {
+    moreActions: 'Другие действия', report: 'Пожаловаться', reportTitle: 'Жалоба на содержимое', reportLead: 'Расскажи, что не так. Академия проверяет каждую жалобу в течение 24 часов и удаляет то, что нарушает правила.',
+    reason_spam: 'Спам или реклама', reason_offensive: 'Оскорбительное или разжигание ненависти', reason_harassment: 'Травля или преследование', reason_nudity: 'Обнажённость или сексуальный контент', reason_fake: 'Фейк или обман', reason_other: 'Другое',
+    reportDetails: 'Подробности (необязательно)', alsoBlock: 'Также заблокировать этого человека — ты больше не увидишь его публикации', sendReport: 'Отправить жалобу', reportThanks: 'Спасибо. Академия проверит в течение 24 часов.',
+    blockUser: 'Заблокировать этого человека', blocked: 'Заблокировано. Ты больше не увидишь публикации этого человека.', blockedUsers: 'Заблокированные', noBlocked: 'Ты никого не блокировала.', unblock: 'Разблокировать', unblocked: 'Разблокировано',
+    accountSafety: 'Приватность и аккаунт', deleteAccount: 'Удалить аккаунт', deleteLead: 'Аккаунт и все твои данные будут удалены навсегда: профиль, курсы, которые ты ведёшь, прогресс, сертификаты, сообщения, посты и билборды. Отменить это нельзя.',
+    deleteConfirm: 'Введи DELETE, чтобы подтвердить', deleteBtn: 'Удалить мой аккаунт навсегда', deleted: 'Аккаунт удалён.',
+    reportsTitle: 'Жалобы на проверку', noReports: 'Открытых жалоб нет.', removeContent: 'Удалить содержимое', dismiss: 'Оставить', kind_post: 'Пост', kind_billboard: 'Билборд', kind_story: 'История', kind_model_call: 'Поиск модели', kind_model_reply: 'Отклик модели', kind_message: 'Сообщение', kind_review: 'Отзыв', kind_question: 'Вопрос', kind_profile: 'Профиль',
+    agreeTerms: 'Я согласна с Условиями использования. Я не буду публиковать оскорбительный или агрессивный контент — академия удаляет его и блокирует такие аккаунты.', readTerms: 'Прочитать условия',
+    iosSoon: 'Скоро в приложении', iosSoonLong: 'Этот курс скоро станет доступен в приложении.'
+  },
+  nl: {
+    moreActions: 'Meer acties', report: 'Melden', reportTitle: 'Inhoud melden', reportLead: 'Vertel wat er mis is. De academie bekijkt elke melding binnen 24 uur en verwijdert inhoud die de regels breekt.',
+    reason_spam: 'Spam of reclame', reason_offensive: 'Beledigend of haatdragend', reason_harassment: 'Intimidatie of pesten', reason_nudity: 'Naakt of seksuele inhoud', reason_fake: 'Nep of misleidend', reason_other: 'Iets anders',
+    reportDetails: 'Details (optioneel)', alsoBlock: 'Deze persoon ook blokkeren — je ziet hun inhoud niet meer', sendReport: 'Melding versturen', reportThanks: 'Bedankt. De academie bekijkt het binnen 24 uur.',
+    blockUser: 'Deze persoon blokkeren', blocked: 'Geblokkeerd. Je ziet de inhoud van deze persoon niet meer.', blockedUsers: 'Geblokkeerde mensen', noBlocked: 'Je hebt niemand geblokkeerd.', unblock: 'Deblokkeren', unblocked: 'Gedeblokkeerd',
+    accountSafety: 'Privacy en account', deleteAccount: 'Account verwijderen', deleteLead: 'Je account en al je gegevens worden definitief verwijderd: profiel, cursussen die je geeft, voortgang, certificaten, berichten, posts en billboards. Dit kan niet ongedaan worden gemaakt.',
+    deleteConfirm: 'Typ DELETE om te bevestigen', deleteBtn: 'Mijn account definitief verwijderen', deleted: 'Je account is verwijderd.',
+    agreeTerms: 'Ik ga akkoord met de Gebruiksvoorwaarden. Ik plaats geen beledigende of kwetsende inhoud — de academie verwijdert die en blokkeert zulke accounts.', readTerms: 'Voorwaarden lezen',
+    iosSoon: 'Binnenkort in de app', iosSoonLong: 'Deze cursus is binnenkort beschikbaar in de app.'
+  }
+};
+for (const k in I18N) Object.assign(I18N[k], { ...I18N_V20.en, ...(I18N_V20[k] || {}) });
+
+/* Terms: zero tolerance for objectionable content + account deletion */
+(function () {
+  const rules = {
+    en: ['Community rules', 'There is zero tolerance for offensive, hateful, sexual, violent or abusive content and for harassment. Every post, billboard, story and message can be reported; the academy reviews reports within 24 hours, removes such content and blocks the accounts that publish it. You can block any person so you no longer see their content.'],
+    uk: ['Правила спільноти', 'Нульова терпимість до образливого, ворожого, сексуального, насильницького чи агресивного вмісту та до цькування. На кожен допис, білборд, історію й повідомлення можна поскаржитися; академія перевіряє скарги протягом 24 годин, видаляє такий вміст і блокує акаунти, що його публікують. Будь-яку людину можна заблокувати, щоб більше не бачити її вміст.'],
+    ru: ['Правила сообщества', 'Нулевая терпимость к оскорбительному, враждебному, сексуальному, жестокому или агрессивному контенту и к травле. На каждый пост, билборд, историю и сообщение можно пожаловаться; академия проверяет жалобы в течение 24 часов, удаляет такой контент и блокирует аккаунты, которые его публикуют. Любого человека можно заблокировать, чтобы больше не видеть его публикации.']
+  };
+  const del = {
+    en: ['Deleting your account', 'You can delete your account at any time: Account → Profile → Delete account. Your profile and personal data are deleted at once.'],
+    uk: ['Видалення акаунта', 'Акаунт можна видалити будь-коли: Кабінет → Профіль → Видалити акаунт. Профіль і особисті дані видаляються одразу.'],
+    ru: ['Удаление аккаунта', 'Аккаунт можно удалить в любой момент: Кабинет → Профиль → Удалить аккаунт. Профиль и личные данные удаляются сразу.']
+  };
+  try {
+    for (const l in LEGAL.terms) {
+      const doc = LEGAL.terms[l], r = rules[l] || rules.en, d = del[l] || del.en;
+      const i = doc.findIndex(s => /content|вміст|контент|regels|treści|contenut/i.test(s[0]));
+      if (i >= 0) doc[i] = r; else doc.push(r);
+      doc.push(d);
+    }
+  } catch (e) {}
+})();
+
+Object.assign(P, { flag: 'M5 21V4M5 4h11l-2.5 4L16 12H5' });
+
+/* ---------- Blocks and reports ---------- */
+let BLOCKED = new Set();
+D.blocks = []; D.reports = [];
+Object.assign(api, {
+  async loadBlocks(userId) {
+    if (MODE.demo) { BLOCKED = new Set(D.blocks.map(b => b.blocked_id)); return; }
+    if (!userId) { BLOCKED = new Set(); return; }
+    const r = rows(await sb.from('user_blocks').select('blocked_id').eq('blocker_id', userId));
+    BLOCKED = new Set(r.map(x => x.blocked_id));
+  },
+  async myBlocks(userId) {
+    if (MODE.demo) return D.blocks;
+    const list = rows(await sb.from('user_blocks').select('blocked_id,created_at').eq('blocker_id', userId).order('created_at', { ascending: false }));
+    const ids = list.map(b => b.blocked_id);
+    const ps = ids.length ? rows(await sb.from('profiles').select('id,display_name').in('id', ids)) : [];
+    return list.map(b => ({ ...b, name: ps.find(p => p.id === b.blocked_id)?.display_name }));
+  },
+  async block(userId, otherId, name) {
+    if (!otherId || otherId === userId) return {};
+    if (MODE.demo) { if (!D.blocks.find(b => b.blocked_id === otherId)) D.blocks.push({ blocked_id: otherId, name, created_at: new Date().toISOString() }); BLOCKED.add(otherId); return {}; }
+    const r = await sb.from('user_blocks').upsert({ blocker_id: userId, blocked_id: otherId }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true });
+    if (!r.error) BLOCKED.add(otherId); return r;
+  },
+  async unblock(userId, otherId) {
+    if (MODE.demo) { D.blocks = D.blocks.filter(b => b.blocked_id !== otherId); BLOCKED.delete(otherId); return {}; }
+    const r = await sb.from('user_blocks').delete().eq('blocker_id', userId).eq('blocked_id', otherId);
+    if (!r.error) BLOCKED.delete(otherId); return r;
+  },
+  async report(userId, f) {
+    if (MODE.demo) { D.reports.unshift({ id: uid(), ...f, status: 'open', created_at: new Date().toISOString() }); return {}; }
+    return sb.from('content_reports').insert({ reporter_id: userId, kind: f.kind, item_id: String(f.item_id), owner_id: isUuid(f.owner_id) ? f.owner_id : null, reason: f.reason, details: f.details || null });
+  },
+  async openReports() {
+    if (MODE.demo) return D.reports.filter(r => r.status === 'open');
+    return rows(await sb.from('content_reports').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(100));
+  },
+  async resolveReport(r, remove) {
+    if (MODE.demo) { D.reports.forEach(x => { if (x.kind === r.kind && x.item_id === r.item_id) x.status = remove ? 'removed' : 'dismissed'; }); return {}; }
+    return sb.rpc('resolve_report', { p_report: r.id, p_remove: remove });
+  },
+  async deleteMyAccount() {
+    if (MODE.demo) return {};
+    const r = await sb.rpc('delete_my_account');
+    if (!r.error) { try { await sb.auth.signOut(); } catch (e) {} }
+    return r;
+  }
+});
+
+/* Hide content from blocked people everywhere it is listed */
+(function () {
+  const keep = (list, key) => Array.isArray(list) ? list.filter(x => !x || !BLOCKED.has(x[key])) : list;
+  [['posts', 'author_id'], ['billboards', 'owner_id'], ['stories', 'author_id'], ['modelCalls', 'author_id'], ['modelReplies', 'author_id'], ['messages', 'sender_id'], ['questions', 'author_id']].forEach(([fn, key]) => {
+    const f = api[fn]; if (typeof f !== 'function') return;
+    api[fn] = async function (...a) { return keep(await f.apply(api, a), key); };
+  });
+  const course = api.course;
+  api.course = async function (...a) { const d = await course.apply(api, a); if (d && Array.isArray(d.reviews)) d.reviews = keep(d.reviews, 'student_id'); return d; };
+  const account = api.account;
+  api.account = async function (user) { const a = await account.call(api, user); try { await api.loadBlocks(user.id); } catch (e) {} return a; };
+})();
+
+/* ---------- "Report / block" button for any user content ---------- */
+function Flag({ ctx, kind, id, owner, name }) {
+  const { t, acct } = ctx;
+  const [open, setOpen] = useState(false);
+  if (!id || id === 'cta') return null;
+  if (acct && owner && owner === acct.user.id) return null;
+  const click = e => { e.stopPropagation(); e.preventDefault(); acct || MODE.demo ? setOpen(true) : needSignIn(ctx); };
+  return html`<span className="flag" onClick=${e => e.stopPropagation()}>
+    <button type="button" className="flag-btn" aria-label=${t.report} title=${t.report} onClick=${click}><${Icon} n="flag" s=${15} /></button>
+    ${open && html`<${ReportModal} ctx=${ctx} kind=${kind} id=${id} owner=${owner} name=${name} onClose=${() => setOpen(false)} />`}
+  </span>`;
+}
+function ReportModal({ ctx, kind, id, owner, name, onClose }) {
+  const { t, acct } = ctx;
+  const [reason, setReason] = useState('offensive'); const [details, setDetails] = useState(''); const [alsoBlock, setAlsoBlock] = useState(!!owner); const [busy, setBusy] = useState(false);
+  const me = acct?.user?.id || 'demo-user';
+  async function send(e) {
+    e.preventDefault(); setBusy(true);
+    const r = await api.report(me, { kind, item_id: id, owner_id: owner, reason, details: details.trim() });
+    if (!r?.error && alsoBlock && owner) await api.block(me, owner, name);
+    setBusy(false);
+    if (r?.error) ctx.toast(r.error.message); else { ctx.toast(alsoBlock && owner ? t.blocked : t.reportThanks); onClose(); ctx.bump(); }
+  }
+  async function blockOnly() { setBusy(true); const r = await api.block(me, owner, name); setBusy(false); if (r?.error) ctx.toast(r.error.message); else { ctx.toast(t.blocked); onClose(); ctx.bump(); } }
+  return html`<${Modal} title=${t.reportTitle} onClose=${onClose}>
+    <form className="form" onSubmit=${send} style=${{ display: 'grid', gap: '12px' }}>
+      <p className="muted" style=${{ margin: 0 }}>${t.reportLead}</p>
+      <div className="report-reasons">${['offensive', 'harassment', 'nudity', 'spam', 'fake', 'other'].map(k => html`<label key=${k} className=${'report-reason' + (reason === k ? ' on' : '')}><input type="radio" name="report-reason" value=${k} checked=${reason === k} onChange=${() => setReason(k)} /> ${t['reason_' + k]}</label>`)}</div>
+      <label className="field">${t.reportDetails}<textarea id="report-details" maxLength="1000" value=${details} onInput=${e => setDetails(e.target.value)}></textarea></label>
+      ${owner && html`<label className="check"><input id="report-block" type="checkbox" checked=${alsoBlock} onChange=${e => setAlsoBlock(e.target.checked)} /> <span>${t.alsoBlock}</span></label>`}
+      <div className="row"><button className="btn gold" disabled=${busy}>${t.sendReport}</button>${owner && html`<button type="button" className="btn" disabled=${busy} onClick=${blockOnly}>${t.blockUser}</button>`}</div>
+    </form>
+  <//>`;
+}
+
+/* ---------- Account: blocked people + delete account ---------- */
+function AccountSafety({ ctx }) {
+  const { t, lang, acct } = ctx;
+  const [list, , reload] = useAsync(() => api.myBlocks(acct.user.id), [acct.user.id, ctx.dataKey]);
+  const [ask, setAsk] = useState(false); const [word, setWord] = useState(''); const [busy, setBusy] = useState(false);
+  async function unblock(b) { const r = await api.unblock(acct.user.id, b.blocked_id); if (r?.error) ctx.toast(r.error.message); else { ctx.toast(t.unblocked); reload(); ctx.bump(); } }
+  async function del() {
+    setBusy(true); const r = await api.deleteMyAccount(); setBusy(false);
+    if (r?.error) return ctx.toast(r.error.message);
+    setAsk(false); ctx.toast(t.deleted); ctx.signOut();
+  }
+  return html`<section className="section" id="account-safety"><${SectionHead} title=${t.accountSafety} />
+    <div className="card" style=${{ display: 'grid', gap: '10px' }}>
+      <b>${t.blockedUsers}</b>
+      ${(list || []).length ? html`<div className="list">${list.map(b => html`<div key=${b.blocked_id} className="li"><span className="avatar">${initials(b.name || '?')}</span><div className="grow"><b>${b.name || t.member}</b><small>${fmtDate(b.created_at, lang, { day: 'numeric', month: 'short', year: 'numeric' })}</small></div><button className="btn sm" onClick=${() => unblock(b)}>${t.unblock}</button></div>`)}</div>` : html`<small className="muted">${t.noBlocked}</small>`}
+    </div>
+    <div className="card danger-zone" style=${{ display: 'grid', gap: '10px', marginTop: '12px' }}>
+      <b>${t.deleteAccount}</b>
+      <small className="muted">${t.deleteLead}</small>
+      <button id="delete-account" className="btn danger" style=${{ justifySelf: 'start' }} onClick=${() => { setWord(''); setAsk(true); }}>${t.deleteAccount}</button>
+    </div>
+    ${ask && html`<${Modal} title=${t.deleteAccount} onClose=${() => setAsk(false)}>
+      <p style=${{ margin: 0 }}>${t.deleteLead}</p>
+      <label className="field">${t.deleteConfirm}<input id="delete-word" className="input" autoComplete="off" autoCapitalize="characters" value=${word} onInput=${e => setWord(e.target.value)} placeholder="DELETE" /></label>
+      <button id="delete-confirm" className="btn danger wide" disabled=${busy || word.trim().toUpperCase() !== 'DELETE'} onClick=${del}>${busy ? t.loading : t.deleteBtn}</button>
+    <//>`}
+  </section>`;
+}
+
+/* ---------- Admin: reports queue ---------- */
+function ReportsAdmin({ ctx }) {
+  const { t, lang } = ctx;
+  const [list, , reload] = useAsync(() => api.openReports(), [ctx.dataKey]);
+  async function act(r, remove) { const x = await api.resolveReport(r, remove); if (x?.error) ctx.toast(x.error.message); else { ctx.toast(t.saved); reload(); ctx.bump(); } }
+  return html`<section className="section"><${SectionHead} title=${t.reportsTitle + ((list || []).length ? ' · ' + list.length : '')} />
+    ${(list || []).length ? html`<div className="list">${list.map(r => html`<div key=${r.id} className="li" style=${{ flexWrap: 'wrap' }}>
+      <span style=${{ color: 'var(--bad)' }}><${Icon} n="flag" /></span>
+      <div className="grow"><b>${t['kind_' + r.kind] || r.kind} · ${t['reason_' + r.reason] || r.reason}</b><small>${fmtDate(r.created_at, lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${r.details ? ' · ' + r.details : ''}</small></div>
+      <div className="row"><button className="btn sm danger" onClick=${() => act(r, true)}>${t.removeContent}</button><button className="btn sm" onClick=${() => act(r, false)}>${t.dismiss}</button></div>
+    </div>`)}</div>` : html`<${Empty} text=${t.noReports} />`}
+  </section>`;
+}
+
+/* ---------- Sign-up: accept terms ---------- */
+function AgreeTerms({ t }) {
+  return html`<label className="check agree"><input id="auth-agree" type="checkbox" required /> <span>${t.agreeTerms} <button type="button" className="link" onClick=${() => go('legal-terms')}>${t.readTerms}</button></span></label>`;
 }
 
 </script>
